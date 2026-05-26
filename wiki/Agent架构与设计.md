@@ -1,7 +1,7 @@
 ---
 title: Agent架构与设计
 tags: [知识库, Agent架构与设计]
-updated: 2026-05-22
+updated: 2026-05-26
 ---
 
 ## 主题概要
@@ -15,6 +15,10 @@ Agent 系统的核心矛盾不在于模型能力，而在于如何构建一个�
 - **生产级 Harness 12 组件**：编排循环、工具、记忆、上下文管理、提示词构建、输出解析、状态管理、错误处理、护栏与安全、验证循环、子 Agent 委托、可观测性。
 - **五种控制模式**：提示链（Prompt Chaining）、路由（Routing）、并行化（Parallelization）、编排器-工作者（Orchestrator-Workers）、评估器-优化器（Evaluator-Optimizer）。
 - **Workflow vs Agent**：执行路径由代码预写的是 Workflow，由 LLM 动态决定的是 Agent。两者无高下，关键是匹配任务特征。
+- **Agent Run / Job 状态模型**：一次用户请求建模为可恢复的 Agent Run（created→planning→executing→waiting→aggregating→responding→completed/failed/cancelled），每个执行步骤建模为有状态的 Job（pending→queued→leased→running→succeeded/failed→retrying→dead_lettered）。状态持久化到 Job Store，是从崩溃中恢复的关键。
+- **异步架构四层分工**：状态存储负责事实，事件通知负责触发，调度器（Orchestrator）负责决策，Worker 负责执行。Orchestrator 不亲自执行耗时任务，只负责"下一步做什么"。
+- **同进程 vs 分布式**：小型/开发期 Agent 用 Future/callback/async-await（进程重启丢状态）；生产级用 Job Store + Queue + Event Bus + Result Store（状态可查询、失败可恢复、可水平扩展）。
+- **可靠性三原则**：① 先写结果再发布事件（避免结果丢失）；② 用 event_id/job_id+version 做幂等（队列至少一次投递）；③ 心跳超时将 leased/running 重置回 queued/retrying（处理 worker 崩溃）。
 
 ## 文章洞见
 
@@ -77,6 +81,11 @@ OpenClaw 是 Gateway-First 的 Harness 架构，上接多渠道入口，下连�
 > 飞樰 · 2026-05-22
 
 系统梳理了 2023~2026 年 Agent 从"被动式 ReAct"→"工作流 Agent"→"自主 Agent"→"自进化 Agent" 的四阶段演化，以及 Prompt、Planning、Memory、Tools、Workflow、Environment 六个核心概念的范式转移。最有价值的判断：Memory 正从"向量数据库主导"向"文件系统主导"回归（事项型记忆用 Markdown 日志，知识型记忆用本地文件系统 + Obsidian + 轻量化向量检索混合）；Tools 从 Function Call 走向 CLI/Script 原生利用，核心是从"人为适配模型"转向"利用模型原生能力"；Workflow 从刚性编排走向"Skill 为主、Workflow 为辅/兜底"的混合架构。核心思想始终是"通过工程化手段构建确定性，以承载模型不确定性"。
+
+### [[Agent 异步架构原理|Agent 异步架构原理]]
+> 柠遇AI纪元 · 2026-05-26
+
+把 Agent 异步架构从"为什么需要"到"怎么做"讲透。核心建模：一次用户请求 = 一个可恢复的 **Agent Run**，每个执行步骤 = 一个带状态的 **Job**。七类组件（API/Session Service、Planner、Orchestrator、Job Store、Queue/Event Bus、Worker、Result Store）各司其职，Orchestrator 只做决策，Worker 只做执行。同进程 Agent 用 Future/async-await 够了；分布式 Agent 需要尽早引入持久化 Job Store 和消息队列，否则进程一死任务状态全丢。以"全渠道软件发布 Agent"为例，详细展示了 DAG 任务拆分、并发执行、T5 Twitter 429 自动重试、结果汇总的完整事件时间线。最终结论：**状态可查询、事件可通知、结果可恢复、失败可重试、执行可观测**。
 
 ### [[重磅 |完备的 AI Agent 学习路线，最详细的资源整理！|重磅 | 完备的 AI Agent 学习路线，最详细的资源整理！]]
 > 陈思州 / Datawhale · 2026-05-22
