@@ -1,7 +1,7 @@
 ---
 title: Agent架构与设计
 tags: [知识库, Agent架构与设计]
-updated: 2026-05-26
+updated: 2026-05-27
 ---
 
 ## 主题概要
@@ -19,6 +19,7 @@ Agent 系统的核心矛盾不在于模型能力，而在于如何构建一个�
 - **异步架构四层分工**：状态存储负责事实，事件通知负责触发，调度器（Orchestrator）负责决策，Worker 负责执行。Orchestrator 不亲自执行耗时任务，只负责"下一步做什么"。
 - **同进程 vs 分布式**：小型/开发期 Agent 用 Future/callback/async-await（进程重启丢状态）；生产级用 Job Store + Queue + Event Bus + Result Store（状态可查询、失败可恢复、可水平扩展）。
 - **可靠性三原则**：① 先写结果再发布事件（避免结果丢失）；② 用 event_id/job_id+version 做幂等（队列至少一次投递）；③ 心跳超时将 leased/running 重置回 queued/retrying（处理 worker 崩溃）。
+- **Self-Summarization（Harness + 模型联合优化）**：把 context compaction 纳入 RL 训练循环，模型端到端学习"产生好摘要"和"根据摘要继续任务"，实现有效无限上下文。这是 Harness 行为与模型能力联合优化的典型案例（来自 Cursor Composer 2，见 [[AI模型专业化与RL训练]]）。
 
 ## 文章洞见
 
