@@ -1,7 +1,7 @@
 ---
 title: Agent记忆系统
 tags: [知识库, Agent记忆系统]
-updated: 2026-05-18
+updated: 2026-05-28
 ---
 
 ## 主题概要
@@ -15,6 +15,9 @@ Agent 的记忆不是"有没有"的问题，而是"把什么东西当成长期�
 - **Knowledge Compilation**：把"推理"提前，将源数据预编译成带类型、可引用、面向任务的知识产物（artifacts）。Agent 查询的不再是原始语料库，而是编译后的产物。
 - **幻觉全链路约束**：Prompt 约束（管边界）、工具调用约束（防止乱行动）、证据约束（有据可依）、输出校验（生成完不是结束）。Agent 幻觉不是一句 Prompt 能兜住的。
 - **Query 构造即一切**：即使记忆系统链路全对，只要 Query 构造错了（如 multilingual query 转译偏差），整个检索就是废的。
+- **CoALA 4 种记忆类型**（普林斯顿框架）：工作记忆（上下文窗口，易失）、语义记忆（CLAUDE.md 等知识库文件，跨会话）、程序性记忆（Skills/skill.md，怎么做事）、情景记忆（跨会话经验提炼，最难）。不是每个 Agent 都需要全部 4 种：客服 Agent 只需 2 种，编程 Agent 需要全部。"遗忘是一个工程难题"。
+- **Memory Store（记忆存储）**：Anthropic 推出的跨会话持久化方案。将文件系统挂载到会话容器，模型可 read/write，用 grep 搜索关键词。可为每个用户/工作区独立创建，边界自定义。文件系统接口远比向量库直接——这是当前生产级情景记忆的主流形态（见 Hermes、Claude Code）。
+- **Dream（梦境）**：Anthropic 的异步记忆整理功能。后台批处理，输入 Memory Store + 历史 Transcripts，运行多 Agent Harness（子 Agent 各自检查，Orchestrator 编排），输出克隆版 Memory Store 的 Diff（非破坏性）。缓存命中率 ~95%，实际成本远低于预期。核心价值：防止记忆库无限膨胀、去重、补全过时信息。
 
 ## 文章洞见
 
@@ -42,6 +45,11 @@ Hermes 把长期资产分成事实记忆（`MEMORY.md` / `USER.md` frozen snapsh
 > InfoQ · 2026-05-12
 
 Pinecone 发布 Nexus 知识引擎，宣告 RAG 时代结束。核心判断：retrieve-read-retrieve 循环的任务完成率只有 50%–60%，Agent 85% 精力耗在"找上下文"。新范式 Knowledge Compilation 提前把源数据编译成 artifacts，配合 KnowQL（Agent 知识检索的"SQL"），声称任务完成率提升到 90% 以上，token 开销降低 90%。
+
+### [[Agent记忆4种类型与Anthropic的记忆存储和梦境功能|Agent 记忆 4 种类型与 Anthropic 的记忆存储和梦境功能]]
+> 玉澄 / 51CTO 技术栈（整合自 IBM Martin Keen + Anthropic Kevin Chen）· 2026-05-28
+
+整合了两个视频演讲的精华。IBM 的 Martin Keen 用 CoALA 框架梳理 4 种记忆类型，最核心洞见是：情景记忆（跨会话经验提炼）是 Agent 和聊天 Bot 的本质分野，也是工程难度最高的部分，难点不在"记什么"而在"忘什么"。Anthropic 工程师 Kevin Chen 演示了 Memory Store（文件系统挂载，grep 搜索，跨会话读写）和 Dream（异步多 Agent Harness，克隆→检查→Diff 输出，95% 缓存命中率，成本极低）。两个功能合起来形成三层架构：会话 → Memory Store → Dream 定期整理，记忆库保持可管理规模。
 
 ### [[拆解 Hermes Agent 的记忆系统：一个生产级 AI 记忆是怎么设计的|拆解 Hermes Agent 的记忆系统]]
 > VibeCoder · 2026-05-18
